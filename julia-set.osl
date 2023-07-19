@@ -1,0 +1,92 @@
+#include "stdosl.h"
+
+struct complex
+{
+	float real;
+	float imaginary;
+};
+
+complex __operator__add__ (complex a, complex b)
+{
+	complex final;
+	final.real = a.real + b.real;
+	final.imaginary = a.imaginary + b.imaginary;
+	return final;
+}
+
+complex __operator__mul__ (complex a, complex b)
+{
+	complex final;
+	final.real = a.real * b.real + a.imaginary * b.imaginary * -1;
+	final.imaginary = a.real * b.imaginary + a.imaginary * b.real;
+	return final;
+}
+
+// This extremely simple pow() implementation is not used below, but 
+// included to allow extending the shader to allow other power terms
+complex pow(complex a, int degree)
+{   
+	if(degree == 0)
+	{
+    		return {1,0};
+	}
+	else if (degree < 1)
+	{
+    		return a;
+	}
+    
+	complex final = {1,0};
+	for(int index=0; index < degree; index++)
+	{
+    		final = final * a;
+	}
+    
+	return final;
+}
+
+float absolute(complex a)
+{
+	return sqrt(pow(a.real,2)+pow(a.imaginary,2));   
+}
+ 
+shader juliaSet
+[[ string help = "Blend colors based on texture coordinate membership in Julia set" ]]
+(
+	float z_nought_real = 0.0
+    	[[ string help = "Real component of the initial value of Z" ]],
+	float z_nought_imag = 0.0
+    	[[ string help = "Imaginary component of the initial value of Z" ]],
+	float c_real = 0.0
+    	[[ string help = "Real component of the constant term" ]],
+	float c_imag = 0.0
+    	[[ string help = "Imaginary component of the constant term" ]],
+	int threshold = 20
+    	[[ string help = "Number of iterations to determine divergence" ]],
+	float cap = 4.0
+    	[[ string help = "Cutoff value to determine divergence" ]],
+	output color color_out = color(0, 0, 0))
+{
+	int divergeFlag = 0;
+	int iterations = 0;
+	complex z = {z_nought_real,  z_nought_imag};
+	z.real = z_nought_real;
+	z.imaginary = z_nought_imag;
+	complex c = {c_real,  c_imag};
+	for(int i = 0; i < threshold; i++)
+	{
+    		z = (z * z) + c;
+    		if(absolute(z) > cap)
+    		{
+        		divergeFlag = 1; // it diverged
+        		iterations = i;
+        		break;
+    		}
+	}
+	float final_blend_ratio;
+	final_blend_ratio = (float)iterations / (threshold - 1);
+	if(final_blend_ratio > 1.0)
+	{
+    		final_blend_ratio = 1.0;
+	}
+	color_out = color(final_blend_ratio, final_blend_ratio, final_blend_ratio);
+}
